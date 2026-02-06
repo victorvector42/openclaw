@@ -40,6 +40,31 @@ function quoteCmdArg(value: string): string {
   return `"${value.replace(/"/g, '\\"')}"`;
 }
 
+function escapeEnvValueForCmd(value: string): string {
+  // Newlines in env values can split the generated .cmd file into extra commands.
+  // Collapse CR/LF to spaces so scheduled tasks stay single-line and safe to execute.
+  return value.replace(/[\r\n]+/g, " ").replace(/"/g, '""');
+}
+
+function formatSetLine(key: string, value: string): string {
+  return `set "${key}=${escapeEnvValueForCmd(value)}"`;
+}
+
+function parseSetAssignment(line: string): { key: string; value: string } | null {
+  const assignmentRaw = line.slice(4).trim();
+  const assignment = assignmentRaw.replace(/^"|"$/g, "");
+  const index = assignment.indexOf("=");
+  if (index <= 0) {
+    return null;
+  }
+  const key = assignment.slice(0, index).trim();
+  const value = assignment.slice(index + 1);
+  if (!key) {
+    return null;
+  }
+  return { key, value };
+}
+
 function resolveTaskUser(env: Record<string, string | undefined>): string | null {
   const username = env.USERNAME || env.USER || env.LOGNAME;
   if (!username) {
@@ -113,14 +138,9 @@ export async function readScheduledTaskCommand(env: Record<string, string | unde
         continue;
       }
       if (line.toLowerCase().startsWith("set ")) {
-        const assignment = line.slice(4).trim();
-        const index = assignment.indexOf("=");
-        if (index > 0) {
-          const key = assignment.slice(0, index).trim();
-          const value = assignment.slice(index + 1).trim();
-          if (key) {
-            environment[key] = value;
-          }
+        const parsed = parseSetAssignment(line);
+        if (parsed) {
+          environment[parsed.key] = parsed.value;
         }
         continue;
       }
@@ -191,7 +211,7 @@ function buildTaskScript({
       if (!value) {
         continue;
       }
-      lines.push(`set ${key}=${value}`);
+      lines.push(formatSetLine(key, value));
     }
   }
   const command = programArguments.map(quoteCmdArg).join(" ");
