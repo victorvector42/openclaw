@@ -161,6 +161,36 @@ describe("readScheduledTaskCommand", () => {
     }
   });
 
+  it("parses quoted set syntax used for special characters", async () => {
+    const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "openclaw-schtasks-test-"));
+    try {
+      const scriptPath = path.join(tmpDir, ".openclaw", "gateway.cmd");
+      await fs.mkdir(path.dirname(scriptPath), { recursive: true });
+      await fs.writeFile(
+        scriptPath,
+        [
+          "@echo off",
+          'set "PATH=C:\\Program Files\\nodejs;C:\\Users\\test\\AppData\\Local\\Programs\\Microsoft VS Code\\bin"',
+          'set "OPENCLAW_GATEWAY_TOKEN=abc=123"',
+          "node gateway.js",
+        ].join("\r\n"),
+        "utf8",
+      );
+
+      const env = { USERPROFILE: tmpDir, OPENCLAW_PROFILE: "default" };
+      const result = await readScheduledTaskCommand(env);
+      expect(result).toEqual({
+        programArguments: ["node", "gateway.js"],
+        environment: {
+          PATH: "C:\\Program Files\\nodejs;C:\\Users\\test\\AppData\\Local\\Programs\\Microsoft VS Code\\bin",
+          OPENCLAW_GATEWAY_TOKEN: "abc=123",
+        },
+      });
+    } finally {
+      await fs.rm(tmpDir, { recursive: true, force: true });
+    }
+  });
+
   it("parses script with quoted arguments containing spaces", async () => {
     const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "openclaw-schtasks-test-"));
     try {
