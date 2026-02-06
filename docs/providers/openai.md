@@ -58,5 +58,16 @@ openclaw models auth login --provider openai-codex
 
 ## Notes
 
+- To switch an existing setup to OpenAI, sign in and then set your default model:
+
+```bash
+openclaw models auth paste-token --provider openai
+openclaw config set agents.defaults.model.primary openai/gpt-5.1-codex
+openclaw models status
+```
+
+If you use Codex subscription auth instead of API keys, sign in with `openclaw models auth login --provider openai-codex`
+and set a Codex model, for example `openai-codex/gpt-5.3-codex`.
+
 - Model refs always use `provider/model` (see [/concepts/models](/concepts/models)).
 - Auth details + reuse rules are in [/concepts/oauth](/concepts/oauth).
